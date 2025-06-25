@@ -7,7 +7,7 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/kr/pty"
+	"github.com/creack/pty"
 	"github.com/pkg/errors"
 )
 
@@ -31,11 +31,27 @@ type LocalCommand struct {
 func New(command string, argv []string, options ...Option) (*LocalCommand, error) {
 	cmd := exec.Command(command, argv...)
 
-	pty, err := pty.Start(cmd)
+	// Use alternative PTY setup to avoid Setctty issues
+	ptmx, tty, err := pty.Open()
 	if err != nil {
-		// todo close cmd?
+		return nil, errors.Wrapf(err, "failed to open pty for command `%s`", command)
+	}
+	
+	cmd.Stdout = tty
+	cmd.Stdin = tty
+	cmd.Stderr = tty
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setsid: true,
+	}
+	
+	if err := cmd.Start(); err != nil {
+		ptmx.Close()
+		tty.Close()
 		return nil, errors.Wrapf(err, "failed to start command `%s`", command)
 	}
+	
+	// Close the slave side in the parent process
+	tty.Close()
 	ptyClosed := make(chan struct{})
 
 	lcmd := &LocalCommand{
@@ -46,7 +62,7 @@ func New(command string, argv []string, options ...Option) (*LocalCommand, error
 		closeTimeout: DefaultCloseTimeout,
 
 		cmd:       cmd,
-		pty:       pty,
+		pty:       ptmx,
 		ptyClosed: ptyClosed,
 	}
 
