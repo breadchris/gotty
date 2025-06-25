@@ -58,10 +58,10 @@ js/node_modules/webpack:
 	npm install
 
 tools:
-	go get github.com/tools/godep
-	go get github.com/mitchellh/gox
-	go get github.com/tcnksm/ghr
-	go get github.com/jteeuwen/go-bindata/...
+	go install github.com/tools/godep
+	go install github.com/mitchellh/gox
+	go install github.com/tcnksm/ghr
+	go install github.com/jteeuwen/go-bindata/...
 
 test:
 	if [ `go fmt $(go list ./... | grep -v /vendor/) | wc -l` -gt 0 ]; then echo "go fmt error"; exit 1; fi
